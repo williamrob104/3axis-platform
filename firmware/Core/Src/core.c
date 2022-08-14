@@ -9,8 +9,8 @@
 #include "ring_buffer.h"
 #include "usbd_cdc_if.h"
 
-#define CMD_BUFFER_SIZE 2048
-#define LINE_BUFFER_SIZE 64
+#define CMD_BUFFER_SIZE 8192
+#define LINE_BUFFER_SIZE 80
 
 RingBuffer cmd_buffer;
 uint8_t line_buffer[LINE_BUFFER_SIZE];
@@ -66,7 +66,7 @@ void Core_Loop() {
   line_buffer[end] = 0;
 
   if (!Core_ExecuteGcode(line_buffer)) {
-    char msg[100];
+    char msg[LINE_BUFFER_SIZE];
     sprintf(msg, "Unknown command \"%s\"\n", line_buffer);
     transmitMsg(msg);
   }
@@ -79,14 +79,13 @@ static float speed = 800;
 
 static bool Core_ExecuteGcode_G0(const uint8_t* str) {
   /* linear move */
-
   bool has_f = false;
   bool has_x = false;
   bool has_y = false;
   bool has_z = false;
   float cmd_f, cmd_x, cmd_y, cmd_z;
 
-  uint8_t* p = str;
+  const uint8_t* p = str;
   while (true) {
     while (*p != 0 && !isGraph(*p)) {
       p++;
@@ -96,19 +95,19 @@ static bool Core_ExecuteGcode_G0(const uint8_t* str) {
     if (*p == 'F') {
       p++;
       has_f = true;
-      cmd_f = strtof(p, &p);
+      cmd_f = strtof((char*)p, (char**)&p);
     } else if (*p == 'X') {
       p++;
       has_x = true;
-      cmd_x = strtof(p, &p);
+      cmd_x = strtof((char*)p, (char**)&p);
     } else if (*p == 'Y') {
       p++;
       has_y = true;
-      cmd_y = strtof(p, &p);
+      cmd_y = strtof((char*)p, (char**)&p);
     } else if (*p == 'Z') {
       p++;
       has_z = true;
-      cmd_z = strtof(p, &p);
+      cmd_z = strtof((char*)p, (char**)&p);
     } else {
       return false;
     }
@@ -116,7 +115,7 @@ static bool Core_ExecuteGcode_G0(const uint8_t* str) {
 
   if (has_f) speed = cmd_f;
 
-  if (!(has_x || has_y || has_z)) return;
+  if (!(has_x || has_y || has_z)) return true;
 
   float dx = 0;
   float dy = 0;
@@ -134,50 +133,85 @@ static bool Core_ExecuteGcode_G0(const uint8_t* str) {
 
   float actual_dx, actual_dy, actual_dz;
   Motion_Move(dx, dy, dz, speed, &actual_dx, &actual_dy, &actual_dz);
-
   pos_x += actual_dx;
   pos_y += actual_dy;
   pos_z += actual_dz;
+
   return true;
 }
 
 static bool Core_ExecuteGcode_G1(const uint8_t* str) {
-  /* linear move */
-  Core_ExecuteGcode_G0(str);
-  return true;
+  return Core_ExecuteGcode_G0(str);
 }
 
 static bool Core_ExecuteGcode_G28(const uint8_t* str) {
-  // auto home
-  Motion_HomeX();
-  pos_x = 0;
-  Motion_HomeY();
-  pos_y = 0;
-  Motion_HomeZ();
-  pos_z = 0;
+  /* auto home */
+  bool has_x = false;
+  bool has_y = false;
+  bool has_z = false;
+
+  const uint8_t* p = str;
+  while (true) {
+    while (*p != 0 && !isGraph(*p)) {
+      p++;
+    }
+    if (*p == 0) break;
+
+    if (*p == 'X') {
+      p++;
+      has_x = true;
+    } else if (*p == 'Y') {
+      p++;
+      has_y = true;
+    } else if (*p == 'Z') {
+      p++;
+      has_z = true;
+    } else {
+      return false;
+    }
+  }
+
+  if (!(has_x || has_y || has_z)) {
+    has_x = true;
+    has_y = true;
+    has_z = true;
+  }
+
+  if (has_x) {
+    Motion_HomeX();
+    pos_x = 0;
+  }
+  if (has_y) {
+    Motion_HomeY();
+    pos_y = 0;
+  }
+  if (has_z) {
+    Motion_HomeZ();
+    pos_z = 0;
+  }
   return true;
 }
 
 static bool Core_ExecuteGcode_G90(const uint8_t* str) {
-  // absolute positioning
+  /* absolute positioning */
   absolute_positioning = true;
   return true;
 }
 
 static bool Core_ExecuteGcode_G91(const uint8_t* str) {
-  // relative positioning
+  /* relative positioning */
   absolute_positioning = false;
   return true;
 }
 
 static bool Core_ExecuteGcode_M17(const uint8_t* str) {
-  // enable steppers
+  /* enable steppers */
   LL_GPIO_ResetOutputPin(MOTOR_EN_GPIO_Port, MOTOR_EN_Pin);
   return true;
 }
 
 static bool Core_ExecuteGcode_M18(const uint8_t* str) {
-  // disable steppers
+  /* disable steppers */
   LL_GPIO_SetOutputPin(MOTOR_EN_GPIO_Port, MOTOR_EN_Pin);
   return true;
 }
