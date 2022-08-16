@@ -213,6 +213,12 @@ static bool Core_ExecuteGcode_G91(const uint8_t* str) {
   return true;
 }
 
+static bool Core_ExecuteGcode_M13(const uint8_t* str) {
+  /* reset probe */
+  Probe_Reset();
+  return true;
+}
+
 static bool Core_ExecuteGcode_M17(const uint8_t* str) {
   /* enable steppers */
   LL_GPIO_ResetOutputPin(MOTOR_EN_GPIO_Port, MOTOR_EN_Pin);
@@ -254,6 +260,8 @@ static bool Core_ExecuteGcode(const uint8_t* str) {
     return Core_ExecuteGcode_G90(str + i);
   else if (strEqual("G91", str, i))
     return Core_ExecuteGcode_G91(str + i);
+  else if (strEqual("M13", str, i))
+    return Core_ExecuteGcode_M13(str + i);
   else if (strEqual("M17", str, i))
     return Core_ExecuteGcode_M17(str + i);
   else if (strEqual("M18", str, i))

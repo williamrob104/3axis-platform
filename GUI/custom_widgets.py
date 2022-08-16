@@ -93,6 +93,7 @@ class ManualControlWidget(QWidget):
             QLabel("Jog Distance"),
             JogDistanceWidget(jog_position_widget.setJogDistance),
         )
+        layout.addRow(QLabel("Probe"), ProbeControlWidget(serial))
         layout.addRow(QLabel("Send G-code"), SendGcodeWidget(serial))
         self.setLayout(layout)
 
@@ -195,6 +196,33 @@ class JogDistanceWidget(QWidget):
         self.set_jog_distance_func(float(self.buttons[i].text()))
 
 
+class ProbeControlWidget(QWidget):
+    def __init__(self, serial: Serial, parent=None):
+        super().__init__(parent)
+        self.serial = serial
+
+        layout = QHBoxLayout()
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        button = QToolButton()
+        button.setText("Pulse")
+        button.clicked.connect(lambda: self.onButtonClicked("M12"))
+        layout.addWidget(button)
+
+        button = QToolButton()
+        button.setText("Reset")
+        button.clicked.connect(lambda: self.onButtonClicked("M13"))
+        layout.addWidget(button)
+
+        self.setLayout(layout)
+
+    def onButtonClicked(self, gcode):
+        if self.serial.isOpen():
+            gcode += "\n"
+            self.serial.write(gcode.encode())
+
+
 class SendGcodeWidget(QLineEdit):
     def __init__(self, serial: Serial, parent=None):
         super().__init__(parent)
@@ -215,6 +243,7 @@ def displayErrorMessage(text):
     msg.setText(text)
     msg.setWindowTitle("Error")
     msg.exec()
+
 
 def loadIcon(filename) -> QIcon:
     return QIcon("./icons/" + filename)

@@ -38,6 +38,7 @@ static void Probe_InitTimer() {
 
   LL_TIM_EnableAllOutputs(TIM1);
 
+  LL_TIM_EnableIT_UPDATE(TIM1);
   NVIC_SetPriority(TIM1_UP_IRQn,
                    NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
   NVIC_EnableIRQ(TIM1_UP_IRQn);
@@ -60,6 +61,11 @@ static void Probe_InitGPIO() {
 
   /* LED pin */
   LL_GPIO_SetOutputPin(LED_GPIO_Port, LED_Pin);
+
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+
   GPIO_InitStruct.Pin = LED_Pin;
   LL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 }
