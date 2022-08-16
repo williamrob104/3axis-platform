@@ -6,6 +6,7 @@
 
 #include "main.h"
 #include "motion.h"
+#include "probe.h"
 #include "ring_buffer.h"
 #include "usbd_cdc_if.h"
 
@@ -31,6 +32,14 @@ void Core_Init() {
   RingBuffer_Init(&cmd_buffer, _buf, CMD_BUFFER_SIZE);
 
   Motion_Init();
+  Probe_Init();
+}
+
+void Core_TIM_IRQHandler(TIM_TypeDef* TIMx) {
+  if (TIMx == TIM1)
+    Probe_TIM_UP_IRQHandler();
+  else
+    Motion_TIM_IRQHandler(TIMx);
 }
 
 void Core_EnqueueCommand(const uint8_t* cmd, uint32_t len) {
@@ -74,7 +83,7 @@ void Core_Loop() {
 }
 
 static bool absolute_positioning = true;
-static float pos_x, pos_y, pos_z;
+static float pos_x = 0, pos_y = 0, pos_z = 0;
 static float speed = 800;
 
 static bool Core_ExecuteGcode_G0(const uint8_t* str) {
@@ -229,6 +238,7 @@ static bool strEqual(const char str1[], const uint8_t* str2, uint16_t len2) {
 }
 
 static bool Core_ExecuteGcode(const uint8_t* str) {
+  // read till first white-space
   uint16_t i = 0;
   while (str[i] != 0 && isGraph(str[i])) {
     i++;

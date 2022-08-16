@@ -8,10 +8,6 @@
 #include "stm32f1xx_ll_tim.h"
 #include "stm32f1xx_ll_utils.h"
 
-#define TIM_X TIM4
-#define TIM_Y TIM3
-#define TIM_Z TIM2
-
 #define TIM_CLOCK SystemCoreClock
 
 #define HOME_SPEED_FAST 800  // mm/min
@@ -23,15 +19,15 @@ static uint32_t remain_Nx, remain_Ny, remain_Nz;
 
 static void Motion_InitTimer() {
   LL_TIM_InitTypeDef TIM_InitStruct = {0};
-  TIM_InitStruct.Prescaler = 3599;  // change later to adjust pulse frequency
+  TIM_InitStruct.Prescaler = 0;  // change later to adjust pulse frequency
   TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
-  TIM_InitStruct.Autoreload = 199;  // change later to adjust pulse frequency
+  TIM_InitStruct.Autoreload = 65535;  // change later to adjust pulse frequency
   TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
 
   LL_TIM_OC_InitTypeDef TIM_OC_InitStruct = {0};
   TIM_OC_InitStruct.OCMode = LL_TIM_OCMODE_PWM2;
   TIM_OC_InitStruct.OCState = LL_TIM_OCSTATE_ENABLE;
-  TIM_OC_InitStruct.CompareValue = 99;  // change later to adjust pulse width
+  TIM_OC_InitStruct.CompareValue = 0;  // change later to adjust pulse width
   TIM_OC_InitStruct.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM2);
@@ -114,11 +110,6 @@ static void Motion_InitGPIO() {
   LL_GPIO_SetOutputPin(MOTOR_EN_GPIO_Port, MOTOR_EN_Pin);  // !Enable=1
   GPIO_InitStruct.Pin = MOTOR_EN_Pin;
   LL_GPIO_Init(MOTOR_EN_GPIO_Port, &GPIO_InitStruct);
-
-  /* LED pin */
-  LL_GPIO_SetOutputPin(LED_GPIO_Port, LED_Pin);
-  GPIO_InitStruct.Pin = LED_Pin;
-  LL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 }
 
 void Motion_Init() {

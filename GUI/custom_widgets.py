@@ -104,37 +104,37 @@ class JogPositionWidget(QWidget):
 
         xy_buttons = QGridLayout()
         button = QToolButton()
-        button.setIcon(QIcon("./icons/chevron-up.png"))
+        button.setIcon(loadIcon("chevron-up.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("Y"))
         xy_buttons.addWidget(button, 0, 1)
         button = QToolButton()
-        button.setIcon(QIcon("./icons/chevron-left.png"))
+        button.setIcon(loadIcon("chevron-left.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("X-"))
         xy_buttons.addWidget(button, 1, 0)
         button = QToolButton()
-        button.setIcon(QIcon("./icons/home.png"))
+        button.setIcon(loadIcon("home.png"))
         button.clicked.connect(lambda: self.onHomeButtonClicked("X Y"))
         xy_buttons.addWidget(button, 1, 1)
         button = QToolButton()
-        button.setIcon(QIcon("./icons/chevron-right.png"))
+        button.setIcon(loadIcon("chevron-right.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("X"))
         xy_buttons.addWidget(button, 1, 2)
         button = QToolButton()
-        button.setIcon(QIcon("./icons/chevron-down.png"))
+        button.setIcon(loadIcon("chevron-down.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("Y-"))
         xy_buttons.addWidget(button, 2, 1)
 
         z_buttons = QGridLayout()
         button = QToolButton()
-        button.setIcon(QIcon("./icons/chevron-up.png"))
+        button.setIcon(loadIcon("chevron-up.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("Z"))
         z_buttons.addWidget(button, 0, 0)
         button = QToolButton()
-        button.setIcon(QIcon("./icons/home.png"))
+        button.setIcon(loadIcon("home.png"))
         button.clicked.connect(lambda: self.onHomeButtonClicked("Z"))
         z_buttons.addWidget(button, 1, 0)
         button = QToolButton()
-        button.setIcon(QIcon("./icons/chevron-down.png"))
+        button.setIcon(loadIcon("chevron-down.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("Z-"))
         z_buttons.addWidget(button, 2, 0)
 
@@ -174,41 +174,25 @@ class JogDistanceWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        button1 = QToolButton()
-        button1.setText("0.1")
-        button1.setCheckable(True)
-        button1.clicked.connect(lambda: self.onButtonClicked(button1))
-        layout.addWidget(button1)
-
-        button2 = QToolButton()
-        button2.setText("1")
-        button2.setCheckable(True)
-        button2.clicked.connect(lambda: self.onButtonClicked(button2))
-        layout.addWidget(button2)
-
-        button3 = QToolButton()
-        button3.setText("10")
-        button3.setCheckable(True)
-        button3.clicked.connect(lambda: self.onButtonClicked(button3))
-        layout.addWidget(button3)
-
-        button4 = QToolButton()
-        button4.setText("30")
-        button4.setCheckable(True)
-        button4.clicked.connect(lambda: self.onButtonClicked(button4))
-        layout.addWidget(button4)
+        dists = ["0.1", "1", "10", "50"]
+        self.buttons = []
+        for i, dist in enumerate(dists):
+            button = QToolButton()
+            button.setText(dist)
+            button.setCheckable(True)
+            button.clicked.connect(lambda _, i=i: self.onButtonClicked(i))
+            layout.addWidget(button)
+            self.buttons.append(button)
 
         self.setLayout(layout)
-        self.buttons = [button1, button2, button3, button4]
 
-        button1.setChecked(True)
-        self.set_jog_distance_func(float(button1.text()))
+        self.onButtonClicked(0)
 
-    def onButtonClicked(self, button):
-        for btn in self.buttons:
-            btn.setChecked(False)
-        button.setChecked(True)
-        self.set_jog_distance_func(float(button.text()))
+    def onButtonClicked(self, i):
+        for button in self.buttons:
+            button.setChecked(False)
+        self.buttons[i].setChecked(True)
+        self.set_jog_distance_func(float(self.buttons[i].text()))
 
 
 class SendGcodeWidget(QLineEdit):
@@ -231,3 +215,6 @@ def displayErrorMessage(text):
     msg.setText(text)
     msg.setWindowTitle("Error")
     msg.exec()
+
+def loadIcon(filename) -> QIcon:
+    return QIcon("./icons/" + filename)

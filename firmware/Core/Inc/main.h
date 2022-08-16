@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.h
+ * @brief          : Header for main.c file.
+ *                   This file contains the common defines of the application.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2022 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -78,6 +78,10 @@ void Error_Handler(void);
 #define ZERO_Y_GPIO_Port GPIOB
 #define ZERO_X_Pin LL_GPIO_PIN_15
 #define ZERO_X_GPIO_Port GPIOB
+#define PROBE_PULSE_Pin LL_GPIO_PIN_8
+#define PROBE_PULSE_GPIO_Port GPIOA
+#define PROBE_RESET_Pin LL_GPIO_PIN_9
+#define PROBE_RESET_GPIO_Port GPIOA
 #define DIR_Z_Pin LL_GPIO_PIN_10
 #define DIR_Z_GPIO_Port GPIOA
 #define STEP_Z_Pin LL_GPIO_PIN_15
@@ -91,7 +95,11 @@ void Error_Handler(void);
 #define STEP_X_Pin LL_GPIO_PIN_6
 #define STEP_X_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-
+#define TIM_X TIM4
+#define TIM_Y TIM3
+#define TIM_Z TIM2
+#define PROBE_PULSE_CHANNEL LL_TIM_CHANNEL_CH1
+#define PROBE_RESET_CHANNEL LL_TIM_CHANNEL_CH2
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
