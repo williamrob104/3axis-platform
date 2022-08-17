@@ -1,9 +1,54 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import *
+import numpy as np
 from serial import Serial
 from serial.tools import list_ports
 from serial.serialutil import SerialException, SerialTimeoutException
+import struct
+
+
+def figure_widget(use_navigation_toolbar=True, **fig_kwargs):
+    from matplotlib.backends.backend_qtagg import (
+        FigureCanvasQTAgg,
+        NavigationToolbar2QT,
+    )
+    from matplotlib.figure import Figure
+
+    fig = Figure(**fig_kwargs)
+    canvas = FigureCanvasQTAgg(fig)
+
+    if use_navigation_toolbar:
+        layout = QVBoxLayout()
+        layout.setSpacing(0)  # spacing between navigation toolbar and figure is 0
+        layout.setContentsMargins(0, 0, 0, 0)  # margin around this widget 0
+        widget = QWidget()
+        widget.setLayout(layout)
+        toolbar = NavigationToolbar2QT(canvas, widget)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+        return fig, widget
+    else:
+        return fig, canvas
+
+
+class MainWidget(QWidget):
+    def __init__(self, serial: Serial, parent=None):
+        super().__init__(parent)
+
+        fig, widget = figure_widget(False, tight_layout=True)
+        ax1 = fig.add_subplot(111)
+        t = np.linspace(0, 4e-3)
+        tau = 0.36e-3
+        y = 4094 * (1 - np.exp(-t / tau))
+        y = y.astype("int")
+        ax1.plot(t, y)
+
+        layout = QHBoxLayout()
+        layout.addWidget(widget)
+        layout.addWidget(SideBarWidget(serial))
+
+        self.setLayout(layout)
 
 
 class SideBarWidget(QWidget):
@@ -207,20 +252,45 @@ class ProbeControlWidget(QWidget):
 
         button = QToolButton()
         button.setText("Pulse")
-        button.clicked.connect(lambda: self.onButtonClicked("M12"))
+        button.clicked.connect(self.onPulseButtonClicked)
         layout.addWidget(button)
 
         button = QToolButton()
         button.setText("Reset")
-        button.clicked.connect(lambda: self.onButtonClicked("M13"))
+        button.clicked.connect(self.onResetButtonClicked)
         layout.addWidget(button)
 
         self.setLayout(layout)
 
-    def onButtonClicked(self, gcode):
+    def onPulseButtonClicked(self):
         if self.serial.isOpen():
-            gcode += "\n"
-            self.serial.write(gcode.encode())
+            self.serial.write(b"M12\n")
+
+            self.serial.timeout = None
+
+            token = b"period"
+            self.serial.read_until(token)
+
+            token = b"data"
+            r = self.serial.read_until(token)
+            data = r[: -len(token)]
+            (sampling_period_ms,) = struct.unpack("f", data)
+
+            token = b"OK\n"
+            r = self.serial.read_until(token)
+            data = r[: -len(token)]
+            samples = struct.unpack(f"{len(data)//2}h", data)
+
+            print(
+                sampling_period_ms,
+                sampling_period_ms * len(samples),
+                samples[0],
+                samples[-1],
+            )
+
+    def onResetButtonClicked(self):
+        if self.serial.isOpen():
+            self.serial.write(b"M13\n")
 
 
 class SendGcodeWidget(QLineEdit):

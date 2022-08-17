@@ -10,7 +10,7 @@
 #include "ring_buffer.h"
 #include "usbd_cdc_if.h"
 
-#define CMD_BUFFER_SIZE 8192
+#define CMD_BUFFER_SIZE 1024
 #define LINE_BUFFER_SIZE 80
 
 RingBuffer cmd_buffer;
@@ -25,6 +25,15 @@ static void transmitMsg(const char msg[]) {
     // wait for transfer complete
   }
   CDC_Transmit_FS((uint8_t*)msg, (uint16_t)strlen(msg));
+}
+
+static void transmitData(const uint8_t* data, uint16_t num_bytes) {
+  USBD_CDC_HandleTypeDef* hcdc =
+      (USBD_CDC_HandleTypeDef*)hUsbDeviceFS.pClassData;
+  while (hcdc->TxState != 0) {
+    // wait for transfer complete
+  }
+  CDC_Transmit_FS((uint8_t*)data, num_bytes);
 }
 
 void Core_Init() {
@@ -213,6 +222,18 @@ static bool Core_ExecuteGcode_G91(const uint8_t* str) {
   return true;
 }
 
+static bool Core_ExecuteGcode_M12(const uint8_t* str) {
+  /* probe pulse and sample */
+  float samping_period_ms;
+  uint16_t num_samples;
+  uint16_t* p = Probe_Sense(&samping_period_ms, &num_samples);
+  transmitMsg("period");
+  transmitData((uint8_t*)&samping_period_ms, sizeof(float));
+  transmitMsg("data");
+  transmitData((uint8_t*)p, num_samples * sizeof(uint16_t));
+  return true;
+}
+
 static bool Core_ExecuteGcode_M13(const uint8_t* str) {
   /* reset probe */
   Probe_Reset();
@@ -260,6 +281,8 @@ static bool Core_ExecuteGcode(const uint8_t* str) {
     return Core_ExecuteGcode_G90(str + i);
   else if (strEqual("G91", str, i))
     return Core_ExecuteGcode_G91(str + i);
+  else if (strEqual("M12", str, i))
+    return Core_ExecuteGcode_M12(str + i);
   else if (strEqual("M13", str, i))
     return Core_ExecuteGcode_M13(str + i);
   else if (strEqual("M17", str, i))

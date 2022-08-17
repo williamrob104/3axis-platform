@@ -29,6 +29,8 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_hal.h"
 
+#include "stm32f1xx_ll_adc.h"
+#include "stm32f1xx_ll_dma.h"
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_system.h"
@@ -36,7 +38,6 @@ extern "C" {
 #include "stm32f1xx_ll_cortex.h"
 #include "stm32f1xx_ll_utils.h"
 #include "stm32f1xx_ll_pwr.h"
-#include "stm32f1xx_ll_dma.h"
 #include "stm32f1xx_ll_tim.h"
 #include "stm32f1xx_ll_gpio.h"
 
@@ -70,6 +71,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED_Pin LL_GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
+#define A0_Pin LL_GPIO_PIN_0
+#define A0_GPIO_Port GPIOA
 #define MOTOR_EN_Pin LL_GPIO_PIN_12
 #define MOTOR_EN_GPIO_Port GPIOB
 #define ZERO_Z_Pin LL_GPIO_PIN_13

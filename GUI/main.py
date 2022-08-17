@@ -18,12 +18,9 @@ app = QApplication(sys.argv)
 app.setApplicationName("Eddy current scanning platform")
 app.setStyle("fusion")
 
-widget = custom_widgets.SideBarWidget(ser)
+widget = custom_widgets.MainWidget(ser)
 
-window = QMainWindow()
-window.setCentralWidget(widget)
-# window.showMaximized()
-window.show()
+widget.show()
 
 # Start the event loop.
 sys.exit(app.exec())
