@@ -1,12 +1,13 @@
-import sys
+import ctypes
 
+import serial
 import serial.tools.list_ports
-from PyQt6.QtWidgets import QApplication, QMainWindow
-from serial import Serial
+from PyQt6.QtWidgets import QApplication
 
 import custom_widgets
 
-ser = Serial()
+
+ser = serial.Serial()
 
 ports = serial.tools.list_ports.grep("STM Serial")
 port = next(ports, None)
@@ -14,13 +15,16 @@ if port:
     ser.port = port.name
     ser.open()
 
-app = QApplication(sys.argv)
+
+myappid = "mycompany.myproduct.subproduct.version"  # arbitrary string
+ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
+app = QApplication([])
 app.setApplicationName("Eddy current scanning platform")
+app.setWindowIcon
 app.setStyle("fusion")
 
 widget = custom_widgets.MainWidget(ser)
-
 widget.show()
 
-# Start the event loop.
-sys.exit(app.exec())
+app.exec()

@@ -10,9 +10,9 @@
 
 #define TIM_CLOCK SystemCoreClock
 
-#define HOME_SPEED_FAST 800  // mm/min
-#define HOME_SPEED_SLOW 150  // mm/min
-#define HOME_REBOUNCE 5      // mm
+#define HOME_XY_SPEED 800  // mm/min
+#define HOME_Z_SPEED 300   // mm/min
+#define HOME_Z_REBOUNCE 5  // mm
 
 static uint8_t moving;
 static uint32_t remain_Nx, remain_Ny, remain_Nz;
@@ -107,8 +107,12 @@ static void Motion_InitGPIO() {
   LL_GPIO_Init(DIR_Z_GPIO_Port, &GPIO_InitStruct);
 
   /* motor enable control pin */
-  LL_GPIO_SetOutputPin(MOTOR_EN_GPIO_Port, MOTOR_EN_Pin);  // !Enable=1
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+
   GPIO_InitStruct.Pin = MOTOR_EN_Pin;
+  LL_GPIO_SetOutputPin(MOTOR_EN_GPIO_Port, MOTOR_EN_Pin);  // !Enable=1
   LL_GPIO_Init(MOTOR_EN_GPIO_Port, &GPIO_InitStruct);
 }
 
@@ -139,16 +143,16 @@ void Motion_TIM_IRQHandler(TIM_TypeDef* TIMx) {
 
 static void ForwardKinematics(float Nx, float Ny, float Nz, float* dx,
                               float* dy, float* dz) {
-  *dx = 0.16f * Nx;
-  *dy = 0.16f * Ny;
-  *dz = 0.0314159265358979f * Ny + 0.0314159265358979f * Nz;
+  *dx = 0.005f * Nx;
+  *dy = 0.05f * Ny;
+  *dz = 0.0009817477042468102f * Ny + 0.000981747704246810f * Nz;
 }
 
 static void InverseKinematics(float dx, float dy, float dz, float* Nx,
                               float* Ny, float* Nz) {
-  *Nx = 6.25f * dx;
-  *Ny = 6.25f * dy;
-  *Nz = -6.25f * dy + 31.8309886183791f * dz;
+  *Nx = 200.f * dx;
+  *Ny = 200.f * dy;
+  *Nz = -200.f * dy + 1018.59163578813f * dz;
 }
 
 static void SetTimerPeriod(TIM_TypeDef* TIMx, float tick_period) {
@@ -278,7 +282,7 @@ static void Motion_Stop() {
 }
 
 void Motion_HomeX() {
-  Motion_MoveVelocity(-HOME_SPEED_FAST, 0, 0);
+  Motion_MoveVelocity(-HOME_XY_SPEED, 0, 0);
   while (LL_GPIO_IsInputPinSet(ZERO_X_GPIO_Port, ZERO_X_Pin)) {
     // wait for end stop engage
   }
@@ -286,7 +290,7 @@ void Motion_HomeX() {
 }
 
 void Motion_HomeY() {
-  Motion_MoveVelocity(0, -HOME_SPEED_FAST, 0);
+  Motion_MoveVelocity(0, -HOME_XY_SPEED, 0);
   while (LL_GPIO_IsInputPinSet(ZERO_Y_GPIO_Port, ZERO_Y_Pin)) {
     // wait for end stop engage
   }
@@ -294,17 +298,17 @@ void Motion_HomeY() {
 }
 
 void Motion_HomeZ() {
-  Motion_MoveVelocity(0, 0, -HOME_SPEED_FAST);
+  Motion_MoveVelocity(0, 0, -HOME_Z_SPEED);
   while (LL_GPIO_IsInputPinSet(ZERO_Z_GPIO_Port, ZERO_Z_Pin)) {
     // wait for end stop engage
   }
   Motion_Stop();
 
   float a;
-  Motion_Move(0, 0, HOME_REBOUNCE, HOME_SPEED_FAST, &a, &a,
+  Motion_Move(0, 0, HOME_Z_REBOUNCE, HOME_Z_SPEED, &a, &a,
               &a);  // end stop disengage
 
-  Motion_MoveVelocity(0, 0, -HOME_SPEED_SLOW);
+  Motion_MoveVelocity(0, 0, -HOME_Z_SPEED / 2);
   while (LL_GPIO_IsInputPinSet(ZERO_Z_GPIO_Port, ZERO_Z_Pin)) {
     // wait for end stop engage
   }

@@ -1,54 +1,73 @@
+import struct
+
+import numpy as np
+import serial.serialutil
+import serial.tools.list_ports
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import *
-import numpy as np
 from serial import Serial
-from serial.tools import list_ports
-from serial.serialutil import SerialException, SerialTimeoutException
-import struct
-
-
-def figure_widget(use_navigation_toolbar=True, **fig_kwargs):
-    from matplotlib.backends.backend_qtagg import (
-        FigureCanvasQTAgg,
-        NavigationToolbar2QT,
-    )
-    from matplotlib.figure import Figure
-
-    fig = Figure(**fig_kwargs)
-    canvas = FigureCanvasQTAgg(fig)
-
-    if use_navigation_toolbar:
-        layout = QVBoxLayout()
-        layout.setSpacing(0)  # spacing between navigation toolbar and figure is 0
-        layout.setContentsMargins(0, 0, 0, 0)  # margin around this widget 0
-        widget = QWidget()
-        widget.setLayout(layout)
-        toolbar = NavigationToolbar2QT(canvas, widget)
-        layout.addWidget(toolbar)
-        layout.addWidget(canvas)
-        return fig, widget
-    else:
-        return fig, canvas
 
 
 class MainWidget(QWidget):
     def __init__(self, serial: Serial, parent=None):
         super().__init__(parent)
 
-        fig, widget = figure_widget(False, tight_layout=True)
-        ax1 = fig.add_subplot(111)
-        t = np.linspace(0, 4e-3)
-        tau = 0.36e-3
-        y = 4094 * (1 - np.exp(-t / tau))
-        y = y.astype("int")
-        ax1.plot(t, y)
-
         layout = QHBoxLayout()
-        layout.addWidget(widget)
         layout.addWidget(SideBarWidget(serial))
 
         self.setLayout(layout)
+
+
+class MatplotlibFigureWidget(QWidget):
+    def __init__(self, parent=None, include_nav_toolbar=True, **fig_kwargs):
+        super().__init__(parent)
+
+        layout = QVBoxLayout()
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.fig = Figure(**fig_kwargs)
+        bgcolor = self.palette().color(self.backgroundRole())
+        self.fig.patch.set_facecolor(
+            [bgcolor.red() / 255, bgcolor.green() / 255, bgcolor.blue() / 255]
+        )
+        canvas = FigureCanvasQTAgg(self.fig)
+
+        if include_nav_toolbar:
+            toolbar = NavigationToolbar2QT(canvas, self)
+            layout.addWidget(toolbar)
+
+        layout.addWidget(canvas)
+
+        self.setLayout(layout)
+
+    @property
+    def figure(self) -> Figure:
+        return self.fig
+
+
+class DataDisplayWidget(MatplotlibFigureWidget):
+    def __init__(self, parent=None, figsize=(3, 2)):
+        super().__init__(
+            parent, include_nav_toolbar=True, tight_layout=True, figsize=figsize
+        )
+
+        ax = self.figure.subplots()
+        ax.set_xlabel("Time (ms)", fontsize=8)
+        ax.set_ylabel("Voltage (V)", fontsize=8)
+        ax.tick_params(axis="both", labelsize=8)
+        self.ax = ax
+
+        (self.line,) = ax.plot([], [])
+
+    def displayData(self, x, y):
+        self.line.set_data(x, y)
+        self.ax.relim()
+        self.ax.autoscale_view(True, True, True)
+        self.fig.canvas.draw()
 
 
 class SideBarWidget(QWidget):
@@ -56,12 +75,18 @@ class SideBarWidget(QWidget):
         super().__init__(parent)
 
         layout = QVBoxLayout()
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+
+        data_display_widget = DataDisplayWidget()
 
         layout.addWidget(QLabel("<b>Serial Port<b>"))
         layout.addWidget(PortConnectWidget(serial))
 
         layout.addWidget(QLabel("<b>Manual Control<b>"))
-        layout.addWidget(ManualControlWidget(serial))
+        layout.addWidget(ManualControlWidget(serial, data_display_widget.displayData))
+
+        layout.addWidget(QLabel("<b>Time Response<b>"))
+        layout.addWidget(data_display_widget)
 
         self.setLayout(layout)
 
@@ -95,11 +120,12 @@ class PortConnectWidget(QWidget):
         try:
             self.serial.open()
             self.serial.write(b"test\n")
-        except SerialTimeoutException:
+        except serial.serialutil.SerialTimeoutException:
             self.serial.close()
-            displayErrorMessage("Cannot connect to port.")
-        except SerialException as e:
-            displayErrorMessage(str(e))
+            display_error_message("Cannot connect to port.")
+        except serial.serialutil.SerialException as e:
+            self.serial.close()
+            display_error_message(str(e))
 
 
 class PortSelectionWidget(QComboBox):
@@ -113,7 +139,7 @@ class PortSelectionWidget(QComboBox):
 
     def refreshItems(self):
         self.clear()
-        for port in list_ports.comports():
+        for port in serial.tools.list_ports.comports():
             self.addItem(port.description, port.name)
 
     def getPortName(self):
@@ -126,7 +152,7 @@ class PortSelectionWidget(QComboBox):
 
 
 class ManualControlWidget(QWidget):
-    def __init__(self, serial: Serial, parent=None):
+    def __init__(self, serial: Serial, data_display_func, parent=None):
         super().__init__(parent)
 
         layout = QFormLayout()
@@ -138,7 +164,7 @@ class ManualControlWidget(QWidget):
             QLabel("Jog Distance"),
             JogDistanceWidget(jog_position_widget.setJogDistance),
         )
-        layout.addRow(QLabel("Probe"), ProbeControlWidget(serial))
+        layout.addRow(QLabel("Probe"), ProbeControlWidget(serial, data_display_func))
         layout.addRow(QLabel("Send G-code"), SendGcodeWidget(serial))
         self.setLayout(layout)
 
@@ -150,37 +176,37 @@ class JogPositionWidget(QWidget):
 
         xy_buttons = QGridLayout()
         button = QToolButton()
-        button.setIcon(loadIcon("chevron-up.png"))
+        button.setIcon(load_icon("chevron-up.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("Y"))
         xy_buttons.addWidget(button, 0, 1)
         button = QToolButton()
-        button.setIcon(loadIcon("chevron-left.png"))
+        button.setIcon(load_icon("chevron-left.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("X-"))
         xy_buttons.addWidget(button, 1, 0)
         button = QToolButton()
-        button.setIcon(loadIcon("home.png"))
+        button.setIcon(load_icon("home.png"))
         button.clicked.connect(lambda: self.onHomeButtonClicked("X Y"))
         xy_buttons.addWidget(button, 1, 1)
         button = QToolButton()
-        button.setIcon(loadIcon("chevron-right.png"))
+        button.setIcon(load_icon("chevron-right.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("X"))
         xy_buttons.addWidget(button, 1, 2)
         button = QToolButton()
-        button.setIcon(loadIcon("chevron-down.png"))
+        button.setIcon(load_icon("chevron-down.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("Y-"))
         xy_buttons.addWidget(button, 2, 1)
 
         z_buttons = QGridLayout()
         button = QToolButton()
-        button.setIcon(loadIcon("chevron-up.png"))
+        button.setIcon(load_icon("chevron-up.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("Z"))
         z_buttons.addWidget(button, 0, 0)
         button = QToolButton()
-        button.setIcon(loadIcon("home.png"))
+        button.setIcon(load_icon("home.png"))
         button.clicked.connect(lambda: self.onHomeButtonClicked("Z"))
         z_buttons.addWidget(button, 1, 0)
         button = QToolButton()
-        button.setIcon(loadIcon("chevron-down.png"))
+        button.setIcon(load_icon("chevron-down.png"))
         button.clicked.connect(lambda: self.onMoveButtonClicked("Z-"))
         z_buttons.addWidget(button, 2, 0)
 
@@ -242,9 +268,10 @@ class JogDistanceWidget(QWidget):
 
 
 class ProbeControlWidget(QWidget):
-    def __init__(self, serial: Serial, parent=None):
+    def __init__(self, serial: Serial, data_display_func, parent=None):
         super().__init__(parent)
         self.serial = serial
+        self.data_display_func = data_display_func
 
         layout = QHBoxLayout()
         layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
@@ -281,12 +308,9 @@ class ProbeControlWidget(QWidget):
             data = r[: -len(token)]
             samples = struct.unpack(f"{len(data)//2}h", data)
 
-            print(
-                sampling_period_ms,
-                sampling_period_ms * len(samples),
-                samples[0],
-                samples[-1],
-            )
+            t = np.arange(0, len(samples)) * sampling_period_ms
+            y = np.array(samples) / 4095 * 3.3
+            self.data_display_func(t, y)
 
     def onResetButtonClicked(self):
         if self.serial.isOpen():
@@ -307,7 +331,7 @@ class SendGcodeWidget(QLineEdit):
             self.serial.write(gcode.encode())
 
 
-def displayErrorMessage(text):
+def display_error_message(text):
     msg = QMessageBox()
     msg.setIcon(QMessageBox.Icon.Critical)
     msg.setText(text)
@@ -315,5 +339,5 @@ def displayErrorMessage(text):
     msg.exec()
 
 
-def loadIcon(filename) -> QIcon:
+def load_icon(filename) -> QIcon:
     return QIcon("./icons/" + filename)
