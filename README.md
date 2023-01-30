@@ -8,4 +8,8 @@ The X and Y axis are driven by NEMA17 stepper motors and timing belts. The z axi
 
 <img src="images/3axis-platform-render.png" width="600">
 
-<img src="images/3axis-platform.jpg" width="600">
+<img src="images/3axis-platform-physical.jpg" width="600">
+
+The stepper motors are driven by DRV8826 stepper drivers controlled by a BluePill board. The platform receives G-code on a USB serial port and executes the commands.
+
+<img src="images/3axis-platform-circuit.png" width="400">
